@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Save Image As</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <div class="brand-icon">↧</div>
+      <div><h1>Save Image As</h1><p>Сохраняйте в нужном формате</p></div>
+      <span class="version">1.0</span>
+    </header>
+
+    <section class="section">
+      <label class="section-label" for="format">Формат по умолчанию</label>
+      <div class="format-grid" id="formatGrid">
+        <button class="format-card" data-format="png"><b>PNG</b><span>Без потерь</span></button>
+        <button class="format-card" data-format="jpg"><b>JPG</b><span>Для фото</span></button>
+        <button class="format-card selected" data-format="webp"><b>WebP</b><span>Компактный</span></button>
+      </div>
+    </section>
+
+    <section class="section quality-section">
+      <div class="quality-heading"><label for="quality">Качество</label><strong id="qualityValue">90%</strong></div>
+      <input id="quality" type="range" min="10" max="100" value="90">
+      <div class="range-labels"><span>Меньше размер</span><span>Лучшее качество</span></div>
+      <p class="hint">Для PNG качество не применяется.</p>
+    </section>
+
+    <footer>
+      <div class="tip"><span>🖱️</span><p>Нажмите правой кнопкой на изображении → <b>Сохранить изображение как…</b></p></div>
+      <div class="saved" id="savedState">Настройки сохраняются автоматически</div>
+    </footer>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>
