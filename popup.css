@@ -36,3 +36,4 @@ footer { border-top: 1px solid #293142; padding-top: 16px; }
 .operation-status.success { color: #a9e7c2; background: #183329; border: 1px solid #285b43; }
 .operation-status.error { color: #ffc0c0; background: #3a2028; border: 1px solid #6c3540; }
 .operation-status[hidden] { display: none; }
+.operation-status.pending { color: #c8d8ff; background: #202e49; border: 1px solid #3c5684; }
