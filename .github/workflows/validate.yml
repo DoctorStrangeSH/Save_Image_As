@@ -1,4 +1,4 @@
-name: Validate extension
+name: Validate and package extension
 
 on:
   push:
@@ -12,10 +12,36 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Validate manifest JSON
-        run: python -m json.tool manifest.json > /dev/null
+      - name: Validate manifest and required files
+        run: |
+          python -m json.tool manifest.json > /dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path("manifest.json").read_text(encoding="utf-8"))
+          required = [
+              manifest["background"]["service_worker"],
+              manifest["action"]["default_popup"],
+              "offscreen.html", "offscreen.js", "popup.css", "popup.js"
+          ]
+          missing = [name for name in required if not Path(name).is_file()]
+          if missing:
+              raise SystemExit("Missing extension files: " + ", ".join(missing))
+          PY
       - name: Check JavaScript syntax
         run: |
           node --check background.js
           node --check offscreen.js
           node --check popup.js
+      - name: Package extension
+        if: github.event_name == 'push'
+        run: |
+          mkdir -p dist
+          zip -r dist/save-image-as.zip manifest.json background.js offscreen.html offscreen.js popup.html popup.css popup.js README.md
+      - name: Upload installable ZIP
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: save-image-as
+          path: dist/save-image-as.zip
+          if-no-files-found: error
