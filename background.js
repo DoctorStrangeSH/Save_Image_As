@@ -1,3 +1,13 @@
+const objectUrlsByDownload = new Map();
+
+chrome.downloads.onChanged.addListener(async delta => {
+  if (!delta.state || (delta.state.current !== "complete" && delta.state.current !== "interrupted")) return;
+  const objectUrl = objectUrlsByDownload.get(delta.id);
+  if (!objectUrl) return;
+  objectUrlsByDownload.delete(delta.id);
+  try { await chrome.runtime.sendMessage({ target: "offscreen", type: "REVOKE_URL", objectUrl }); } catch {}
+});
+
 const MENU = {
   original: "save-original",
   png: "save-png",
@@ -92,7 +102,7 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
 
 async function downloadOriginal(url) {
   const filename = makeFilename(url, extensionFromUrl(url) || "img");
-  await chrome.downloads.download({ url, filename, conflictAction: "uniquify" });
+  await chrome.downloads.download({ url, filename, saveAs: true, conflictAction: "uniquify" });
 }
 
 async function convertAndDownload(url, format, quality) {
@@ -107,12 +117,18 @@ async function convertAndDownload(url, format, quality) {
 
   if (!response?.ok) throw new Error(response?.error || "Конвертация не удалась.");
   const filename = makeFilename(url, format === "jpg" ? "jpg" : format);
-  await chrome.downloads.download({
-    url: response.objectUrl,
-    filename,
-    saveAs: false,
-    conflictAction: "uniquify"
-  });
+  try {
+    const downloadId = await chrome.downloads.download({
+      url: response.objectUrl,
+      filename,
+      saveAs: true,
+      conflictAction: "uniquify"
+    });
+    objectUrlsByDownload.set(downloadId, response.objectUrl);
+  } catch (error) {
+    await chrome.runtime.sendMessage({ target: "offscreen", type: "REVOKE_URL", objectUrl: response.objectUrl });
+    throw error;
+  }
 }
 
 async function ensureOffscreenDocument() {
