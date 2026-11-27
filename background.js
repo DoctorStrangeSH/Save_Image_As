@@ -2,7 +2,8 @@ const MENU = {
   original: "save-original",
   png: "save-png",
   jpg: "save-jpg",
-  webp: "save-webp"
+  webp: "save-webp",
+  default: "save-default"
 };
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -16,6 +17,12 @@ chrome.runtime.onInstalled.addListener(async () => {
     chrome.contextMenus.create({
       id: "save-image-as",
       title: "Сохранить изображение как…",
+      contexts: ["image"]
+    });
+    chrome.contextMenus.create({
+      id: MENU.default,
+      parentId: "save-image-as",
+      title: "Сохранить в выбранном формате",
       contexts: ["image"]
     });
     chrome.contextMenus.create({
@@ -43,20 +50,39 @@ chrome.runtime.onInstalled.addListener(async () => {
       contexts: ["image"]
     });
   });
+  updateDefaultMenu();
 });
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "sync" && changes.format) updateDefaultMenu();
+});
+
+async function updateDefaultMenu() {
+  const { format = "webp" } = await chrome.storage.sync.get({ format: "webp" });
+  const label = format.toUpperCase();
+  chrome.contextMenus.update(MENU.default, {
+    title: `Сохранить в ${label} (по умолчанию)`
+  }, () => void chrome.runtime.lastError);
+}
 
 chrome.contextMenus.onClicked.addListener(async (info) => {
   if (!info.srcUrl) return;
-  const format = Object.keys(MENU).find(key => MENU[key] === info.menuItemId);
+  let format = Object.keys(MENU).find(key => MENU[key] === info.menuItemId);
   if (!format) return;
+  if (format === "default") {
+    const settings = await chrome.storage.sync.get({ format: "webp" });
+    format = settings.format;
+  }
 
   try {
     if (format === "original") {
       await downloadOriginal(info.srcUrl);
+      await chrome.action.setBadgeText({ text: "" });
       return;
     }
     const settings = await chrome.storage.sync.get({ quality: 90 });
     await convertAndDownload(info.srcUrl, format, settings.quality);
+    await chrome.action.setBadgeText({ text: "" });
   } catch (error) {
     console.error("Save Image As:", error);
     await chrome.action.setBadgeBackgroundColor({ color: "#d94b4b" });
