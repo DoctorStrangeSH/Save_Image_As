@@ -2,11 +2,20 @@
   "manifest_version": 3,
   "name": "Save Image As",
   "short_name": "Save Image As",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Сохраняйте изображения в PNG, JPG, WebP или оригинальном формате.",
-  "permissions": ["contextMenus", "downloads", "storage", "offscreen"],
-  "host_permissions": ["<all_urls>"],
-  "background": { "service_worker": "background.js" },
+  "permissions": [
+    "contextMenus",
+    "downloads",
+    "storage",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_title": "Save Image As",
     "default_popup": "popup.html"
