@@ -27,7 +27,7 @@ async function registerDownload(downloadId, objectUrl = null) {
   const [item] = await chrome.downloads.search({ id: downloadId });
   if (item?.state === "complete") await finalizeDownload(downloadId, true);
   else if (item?.state === "interrupted") await finalizeDownload(downloadId, false);
-});
+}
 
 const MENU = {
   original: "save-original",
