@@ -1,5 +1,10 @@
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.target !== "offscreen" || message.type !== "CONVERT_IMAGE") return;
+  if (message.target !== "offscreen") return;
+  if (message.type === "REVOKE_URL") {
+    URL.revokeObjectURL(message.objectUrl);
+    return;
+  }
+  if (message.type !== "CONVERT_IMAGE") return;
   convertImage(message.url, message.format, message.quality)
     .then(objectUrl => sendResponse({ ok: true, objectUrl }))
     .catch(error => sendResponse({ ok: false, error: error.message || "Ошибка конвертации." }));
