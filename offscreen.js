@@ -21,8 +21,8 @@ async function convertImage(url, format, quality) {
   if (sourceBlob.type === "image/svg+xml" || /\.svg(?:$|[?#])/i.test(url)) {
     throw new Error("SVG — векторный формат. Для него выберите «Оригинальный формат».");
   }
-  if (sourceBlob.type === "image/gif") {
-    throw new Error("GIF может быть анимированным. Чтобы сохранить анимацию, выберите оригинальный формат.");
+  if (await isAnimatedImage(sourceBlob)) {
+    throw new Error("Похоже, это анимированное изображение. Чтобы не потерять анимацию, выберите оригинальный формат.");
   }
 
   const bitmap = await createImageBitmap(sourceBlob);
@@ -49,4 +49,23 @@ async function convertImage(url, format, quality) {
   } finally {
     bitmap.close();
   }
+}
+
+async function isAnimatedImage(blob) {
+  if (blob.type === "image/gif") return true;
+  const bytes = new Uint8Array(await blob.slice(0, Math.min(blob.size, 2 * 1024 * 1024)).arrayBuffer());
+  const hasMarker = marker => {
+    const markerBytes = new TextEncoder().encode(marker);
+    outer: for (let i = 0; i <= bytes.length - markerBytes.length; i++) {
+      for (let j = 0; j < markerBytes.length; j++) {
+        if (bytes[i + j] !== markerBytes[j]) continue outer;
+      }
+      return true;
+    }
+    return false;
+  };
+  if (blob.type === "image/png" && hasMarker("acTL")) return true;
+  if (blob.type === "image/webp" && (hasMarker("ANIM") || hasMarker("ANMF"))) return true;
+  if (blob.type === "image/avif" && hasMarker("avis")) return true;
+  return false;
 }
