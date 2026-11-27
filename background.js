@@ -88,17 +88,24 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
     if (format === "original") {
       await downloadOriginal(info.srcUrl);
       await chrome.action.setBadgeText({ text: "" });
+      await setOperationStatus("success", "Оригинал отправлен в загрузки.");
       return;
     }
     const settings = await chrome.storage.sync.get({ quality: 90 });
     await convertAndDownload(info.srcUrl, format, settings.quality);
     await chrome.action.setBadgeText({ text: "" });
+    await setOperationStatus("success", "Изображение подготовлено и отправлено в загрузки.");
   } catch (error) {
     console.error("Save Image As:", error);
     await chrome.action.setBadgeBackgroundColor({ color: "#d94b4b" });
     await chrome.action.setBadgeText({ text: "!" });
+    await setOperationStatus("error", error.message || "Не удалось сохранить изображение.");
   }
 });
+
+async function setOperationStatus(type, message) {
+  await chrome.storage.local.set({ lastOperation: { type, message, timestamp: Date.now() } });
+}
 
 async function downloadOriginal(url) {
   const filename = makeFilename(url, extensionFromUrl(url) || "img");
