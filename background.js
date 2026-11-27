@@ -1,24 +1,32 @@
 const downloadKey = id => `download_${id}`;
 
 chrome.downloads.onChanged.addListener(async delta => {
-  const key = downloadKey(delta.id);
+  if (delta.state?.current === "complete") await finalizeDownload(delta.id, true);
+  else if (delta.state?.current === "interrupted" || delta.error) await finalizeDownload(delta.id, false);
+});
+
+async function finalizeDownload(downloadId, succeeded) {
+  const key = downloadKey(downloadId);
   const stored = await chrome.storage.session.get(key);
   const record = stored[key];
   if (!record) return;
 
-  if (delta.state?.current === "complete") {
-    await setOperationStatus("success", "Изображение успешно сохранено.");
-    await chrome.storage.session.remove(key);
-    if (record.objectUrl) {
-      try { await chrome.runtime.sendMessage({ target: "offscreen", type: "REVOKE_URL", objectUrl: record.objectUrl }); } catch {}
-    }
-  } else if (delta.state?.current === "interrupted" || delta.error) {
-    await setOperationStatus("error", "Загрузка прервана. Попробуйте сохранить изображение ещё раз.");
-    await chrome.storage.session.remove(key);
-    if (record.objectUrl) {
-      try { await chrome.runtime.sendMessage({ target: "offscreen", type: "REVOKE_URL", objectUrl: record.objectUrl }); } catch {}
-    }
+  await setOperationStatus(
+    succeeded ? "success" : "error",
+    succeeded ? "Изображение успешно сохранено." : "Загрузка прервана. Попробуйте сохранить изображение ещё раз."
+  );
+  await chrome.storage.session.remove(key);
+  if (record.objectUrl) {
+    try { await chrome.runtime.sendMessage({ target: "offscreen", type: "REVOKE_URL", objectUrl: record.objectUrl }); } catch {}
   }
+}
+
+async function registerDownload(downloadId, objectUrl = null) {
+  await chrome.storage.session.set({ [downloadKey(downloadId)]: { objectUrl } });
+  await setOperationStatus("pending", "Ожидаем завершения сохранения…");
+  const [item] = await chrome.downloads.search({ id: downloadId });
+  if (item?.state === "complete") await finalizeDownload(downloadId, true);
+  else if (item?.state === "interrupted") await finalizeDownload(downloadId, false);
 });
 
 const MENU = {
@@ -121,8 +129,7 @@ async function setOperationStatus(type, message) {
 async function downloadOriginal(url) {
   const filename = makeFilename(url, extensionFromUrl(url) || "img");
   const downloadId = await chrome.downloads.download({ url, filename, saveAs: true, conflictAction: "uniquify" });
-  await chrome.storage.session.set({ [downloadKey(downloadId)]: { objectUrl: null } });
-  await setOperationStatus("pending", "Ожидаем завершения сохранения…");
+  await registerDownload(downloadId);
 }
 
 async function convertAndDownload(url, format, quality) {
@@ -144,8 +151,7 @@ async function convertAndDownload(url, format, quality) {
       saveAs: true,
       conflictAction: "uniquify"
     });
-    await chrome.storage.session.set({ [downloadKey(downloadId)]: { objectUrl: response.objectUrl } });
-    await setOperationStatus("pending", "Ожидаем завершения сохранения…");
+    await registerDownload(downloadId, response.objectUrl);
   } catch (error) {
     await chrome.runtime.sendMessage({ target: "offscreen", type: "REVOKE_URL", objectUrl: response.objectUrl });
     throw error;
