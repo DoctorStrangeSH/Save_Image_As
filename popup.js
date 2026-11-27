@@ -28,7 +28,7 @@ function renderOperationStatus(operation) {
     return;
   }
   operationStatus.hidden = false;
-  operationStatus.className = `operation-status ${operation.type === "error" ? "error" : "success"}`;
+  operationStatus.className = `operation-status ${["error", "pending"].includes(operation.type) ? operation.type : "success"}`;
   operationStatus.textContent = operation.message;
 }
 
