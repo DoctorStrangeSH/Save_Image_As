@@ -7,10 +7,10 @@ const MENU = {
 };
 
 chrome.runtime.onInstalled.addListener(async () => {
+  const current = await chrome.storage.sync.get(["format", "quality"]);
   await chrome.storage.sync.set({
-    format: "webp",
-    quality: 90,
-    rememberFormat: true
+    format: current.format || "webp",
+    quality: current.quality ?? 90
   });
 
   chrome.contextMenus.removeAll(() => {
@@ -49,8 +49,8 @@ chrome.runtime.onInstalled.addListener(async () => {
       title: "WebP",
       contexts: ["image"]
     });
+    updateDefaultMenu();
   });
-  updateDefaultMenu();
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {
