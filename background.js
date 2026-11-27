@@ -59,12 +59,8 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
     await convertAndDownload(info.srcUrl, format, settings.quality);
   } catch (error) {
     console.error("Save Image As:", error);
-    chrome.notifications?.create?.({
-      type: "basic",
-      iconUrl: "icon.png",
-      title: "Не удалось сохранить изображение",
-      message: error.message || "Проверьте доступность изображения."
-    });
+    await chrome.action.setBadgeBackgroundColor({ color: "#d94b4b" });
+    await chrome.action.setBadgeText({ text: "!" });
   }
 });
 
