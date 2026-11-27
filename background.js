@@ -1,11 +1,24 @@
-const objectUrlsByDownload = new Map();
+const downloadKey = id => `download_${id}`;
 
 chrome.downloads.onChanged.addListener(async delta => {
-  if (!delta.state || (delta.state.current !== "complete" && delta.state.current !== "interrupted")) return;
-  const objectUrl = objectUrlsByDownload.get(delta.id);
-  if (!objectUrl) return;
-  objectUrlsByDownload.delete(delta.id);
-  try { await chrome.runtime.sendMessage({ target: "offscreen", type: "REVOKE_URL", objectUrl }); } catch {}
+  const key = downloadKey(delta.id);
+  const stored = await chrome.storage.session.get(key);
+  const record = stored[key];
+  if (!record) return;
+
+  if (delta.state?.current === "complete") {
+    await setOperationStatus("success", "Изображение успешно сохранено.");
+    await chrome.storage.session.remove(key);
+    if (record.objectUrl) {
+      try { await chrome.runtime.sendMessage({ target: "offscreen", type: "REVOKE_URL", objectUrl: record.objectUrl }); } catch {}
+    }
+  } else if (delta.state?.current === "interrupted" || delta.error) {
+    await setOperationStatus("error", "Загрузка прервана. Попробуйте сохранить изображение ещё раз.");
+    await chrome.storage.session.remove(key);
+    if (record.objectUrl) {
+      try { await chrome.runtime.sendMessage({ target: "offscreen", type: "REVOKE_URL", objectUrl: record.objectUrl }); } catch {}
+    }
+  }
 });
 
 const MENU = {
@@ -88,13 +101,11 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
     if (format === "original") {
       await downloadOriginal(info.srcUrl);
       await chrome.action.setBadgeText({ text: "" });
-      await setOperationStatus("success", "Оригинал отправлен в загрузки.");
       return;
     }
     const settings = await chrome.storage.sync.get({ quality: 90 });
     await convertAndDownload(info.srcUrl, format, settings.quality);
     await chrome.action.setBadgeText({ text: "" });
-    await setOperationStatus("success", "Изображение подготовлено и отправлено в загрузки.");
   } catch (error) {
     console.error("Save Image As:", error);
     await chrome.action.setBadgeBackgroundColor({ color: "#d94b4b" });
@@ -109,7 +120,9 @@ async function setOperationStatus(type, message) {
 
 async function downloadOriginal(url) {
   const filename = makeFilename(url, extensionFromUrl(url) || "img");
-  await chrome.downloads.download({ url, filename, saveAs: true, conflictAction: "uniquify" });
+  const downloadId = await chrome.downloads.download({ url, filename, saveAs: true, conflictAction: "uniquify" });
+  await chrome.storage.session.set({ [downloadKey(downloadId)]: { objectUrl: null } });
+  await setOperationStatus("pending", "Ожидаем завершения сохранения…");
 }
 
 async function convertAndDownload(url, format, quality) {
@@ -131,7 +144,8 @@ async function convertAndDownload(url, format, quality) {
       saveAs: true,
       conflictAction: "uniquify"
     });
-    objectUrlsByDownload.set(downloadId, response.objectUrl);
+    await chrome.storage.session.set({ [downloadKey(downloadId)]: { objectUrl: response.objectUrl } });
+    await setOperationStatus("pending", "Ожидаем завершения сохранения…");
   } catch (error) {
     await chrome.runtime.sendMessage({ target: "offscreen", type: "REVOKE_URL", objectUrl: response.objectUrl });
     throw error;
