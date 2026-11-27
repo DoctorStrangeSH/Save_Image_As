@@ -4,7 +4,6 @@
   "short_name": "Save Image As",
   "version": "1.0.0",
   "description": "Сохраняйте изображения в PNG, JPG, WebP или оригинальном формате.",
-  "default_locale": "ru",
   "permissions": ["contextMenus", "downloads", "storage", "offscreen"],
   "host_permissions": ["<all_urls>"],
   "background": { "service_worker": "background.js" },
